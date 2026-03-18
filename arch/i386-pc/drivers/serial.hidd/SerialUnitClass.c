@@ -347,7 +347,7 @@ BOOL PCSerUnit__Hidd_SerialUnit__SetBaudrate(OOP_Class *cl, OOP_Object *o, struc
   if (msg->baudrate != data->baudrate)
   {
     valid = set_baudrate(data, msg->baudrate);
-  } /* if */
+  } else valid = TRUE;
   return valid;
 }
 
