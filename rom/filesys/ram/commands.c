@@ -1858,8 +1858,6 @@ BOOL CmdRenameObject(struct Handler *handler, struct Lock *old_lock,
    {
       if (duplicate != object)
          error = ERROR_OBJECT_EXISTS;
-      else
-         error = ERROR_INVALID_COMPONENT_NAME;
    }
    if(parent == NULL)
       error = IoErr();
