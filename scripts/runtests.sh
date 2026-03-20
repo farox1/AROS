@@ -26,7 +26,28 @@ fi
 mkdir -p $AROSRUNDIR
 rm -rf $AROSLOGDIR
 mkdir -p $AROSLOGDIR
-rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/* $AROSRUNDIR
+
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/boot/* $AROSRUNDIR/boot
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/C/* $AROSRUNDIR/C
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Classes/* $AROSRUNDIR/Classes
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Devs/* $AROSRUNDIR/Devs
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Fonts/* $AROSRUNDIR/Fonts
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/L/* $AROSRUNDIR/L
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Libs/* $AROSRUNDIR/Libs
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Locale/* $AROSRUNDIR/Locale
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Prefs/* $AROSRUNDIR/Prefs
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/S/* $AROSRUNDIR/S
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Storage/* $AROSRUNDIR/Storage
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/System/* $AROSRUNDIR/System
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Tools/* $AROSRUNDIR/Tools
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Utilities/* $AROSRUNDIR/Utilities
+
+
+mkdir -p $AROSRUNDIR/Development/Debug/Tests/
+rsync -r -t -l --info=progress2 -s --exclude=*.dbg ./core-linux-x86_64-d/bin/linux-x86_64/AROS/Development/Debug/Tests/* \
+    $AROSRUNDIR/Development/Debug/Tests
+
+cp ./core-linux-x86_64-d/bin/linux-x86_64/AROS/AROS.boot $AROSRUNDIR
 cp ./core-linux-x86_64-d/bin/linux-x86_64/AROS/.gdb_ignore_errors.py $AROSRUNDIR
 cp ./core-linux-x86_64-d/bin/linux-x86_64/AROS/.gdbinit $AROSRUNDIR
 
