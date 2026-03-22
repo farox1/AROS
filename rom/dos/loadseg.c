@@ -134,7 +134,7 @@ static AROS_UFH3(void, FreeFunc,
             bug("[LoadSeg] Failed to load '%s'\n", name));
 #if (AROS_FLAVOUR & AROS_FLAVOUR_BINCOMPAT)
         /* overlayed executables return -segs and handle must not be closed */
-        if ((LONG)segs > 0)
+        if (segs == BNULL || (LONG)segs > 0)
             Close(file);
         else
             segs = (BPTR)-((LONG)segs);
