@@ -2469,6 +2469,16 @@ STATIC ULONG _OM_SET(struct IClass * cl, struct Gadget * g, struct opSet * msg)
 	    td->buffer_allocated_len = (ULONG) ti->ti_Data;
 	    break;
 
+#ifdef MORPHOS_AG_EXTENSION
+	case TDTA_LineList:
+	    /* Workaround, see amigaguide/nodeclass.c:dtm_asynclayout */
+	    D(bug("text.datatype/DT_SetMethod: TDTA_LineList  0x%ld\n", ti->ti_Data));
+	    td->marked_line = NULL;
+	    td->selected_line = NULL;
+	    td->last_marked_line = NULL;
+	    break;
+#endif
+
 	case TDTA_WordWrap:
 	    D(bug("text.datatype/DT_SetMethod: TDTA_WordWrap  0x%ld\n", ti->ti_Data));
 	    td->word_wrap = ti->ti_Data;

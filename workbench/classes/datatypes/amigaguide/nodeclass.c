@@ -1432,6 +1432,8 @@ IPTR dtm_asynclayout(Class *cl, Object *obj, struct gpLayout *msg)
          {
             DeletePool(data->n_LinePool);
             NewList(list);
+            /* Workaround to let text.datatype know that old list is no longer valid */
+            SetAttrs(obj, TDTA_LineList, list, TAG_DONE);
          }
          data->n_LinePool = CreatePool(MEMF_CLEAR | MEMF_ANY, AG_PUDDLE_SIZE, AG_PUDDLE_SIZE);
 
