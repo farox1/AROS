@@ -7,6 +7,7 @@ MAINDIR := arch/all-pc/bootstrap
 
 USER_INCLUDES := -I $(SRCDIR)/$(MAINDIR) -isystem $(SRCDIR)/bootstrap/include \
                -I$(GENDIR)/include
+USER_CPPFLAGS := -DMULTIBOOT_64BIT
 ifeq ($(AROS_TARGET_CPU),x86_64)
     ISA_FLAGS := $(ISA_X86_FLAGS)
 endif
