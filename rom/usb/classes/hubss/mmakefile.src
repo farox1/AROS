@@ -11,6 +11,6 @@ FILES :=    hubss_class
 %build_module_library mmake=kernel-usb-classes-hubss \
     modname=hubss modtype=usbclass modsuffix="class" \
     files="$(FILES)" \
-    uselibs="arossupport"
+    uselibs="arossupport stdc.static"
 
 %common

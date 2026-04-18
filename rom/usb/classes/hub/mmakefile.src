@@ -1,7 +1,7 @@
 
 include $(SRCDIR)/config/aros.cfg
 
-USER_LDFLAGS := -noclibs -lstdc.static
+USER_LDFLAGS := -noclibs
 
 FILES :=    hub.class debug
 #USER_CPPFLAGS := -DDEBUG=1
@@ -11,6 +11,6 @@ FILES :=    hub.class debug
 %build_module_library mmake=kernel-usb-classes-hub \
     modname=hub modtype=usbclass modsuffix="class" \
     files="$(FILES)" \
-    uselibs="debug"
+    uselibs="debug stdc.static"
 
 %common
