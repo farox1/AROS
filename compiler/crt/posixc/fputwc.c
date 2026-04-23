@@ -15,9 +15,11 @@
 #undef putwc
 
 wint_t fputwc(
-/*     SYNOPSIS    */    
-    wchar_t wc, 
-    FILE * fp) 
+
+/*  SYNOPSIS */
+        wchar_t wc, 
+        FILE * fp) 
+
 /*  FUNCTION
         Writes the wide character wc to the stream and advances the position indicator.
 

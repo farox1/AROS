@@ -35,7 +35,7 @@
 
 size_t wcsrtombs(
 
-    /*  SYNOPSIS */
+/*  SYNOPSIS */
         char * restrict dst, 
         const wchar_t ** restrict src,
         size_t len, 

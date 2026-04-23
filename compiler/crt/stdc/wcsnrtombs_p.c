@@ -101,7 +101,7 @@ size_t __wcsnrtombs(char * restrict dst, const wchar_t ** restrict src, size_t n
     NAME */
 size_t wcsnrtombs(
 
-    /*  SYNOPSIS */
+/*  SYNOPSIS */
         char * restrict dst, 
         const wchar_t ** restrict src,
         size_t nwc, 

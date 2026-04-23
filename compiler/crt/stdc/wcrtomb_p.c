@@ -59,7 +59,7 @@ size_t __wcrtomb(char * restrict s, wchar_t wc, mbstate_t * restrict ps __unused
 
 size_t wcrtomb(
 
-    /*  SYNOPSIS */
+/*  SYNOPSIS */
     char * restrict s, 
     wchar_t wc,
     mbstate_t * restrict ps)

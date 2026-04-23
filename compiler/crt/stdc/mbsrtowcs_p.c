@@ -35,7 +35,7 @@
 
 size_t mbsrtowcs(
 
-    /*  SYNOPSIS */
+/*  SYNOPSIS */
     wchar_t * restrict dst, 
     const char ** restrict src, 
     size_t len,

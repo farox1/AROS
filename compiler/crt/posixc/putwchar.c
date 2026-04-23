@@ -12,8 +12,10 @@
 #include <wchar.h>
 
 wint_t putwchar(
-/*     SYNOPSIS    */
-    wchar_t wc)
+
+/*  SYNOPSIS */
+        wchar_t wc)
+
 /*  FUNCTION
         Writes the wide character wc to the stream and advances the position indicator.
 
