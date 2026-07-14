@@ -1,0 +1,90 @@
+include $(SRCDIR)/config/aros.cfg
+
+include $(SRCDIR)/$(CURDIR)/sources.drm.mak
+
+# WARNING - THIS MMAKEFILE REFERENCES SOURCE CODE OUTSIDE OF ITS TREE
+
+#MM- workbench-hidds-intel : hidd-intel-$(AROS_TARGET_CPU)
+#MM- hidd-intel-i386 : hidd-intel
+#MM- hidd-intel-x86_64 : hidd-intel
+#MM hidd-intel : hidd-intel-libdrm hidd-intel-drm
+
+###############################################
+# libdrm wrapper functions -> libdrm_intel.a
+###############################################
+
+USER_INCLUDES := \
+            -I$(SRCDIR)/$(CURDIR)/include/libdrm \
+            -I$(SRCDIR)/$(CURDIR)/include \
+            -I$(SRCDIR)/$(CURDIR)/include/uapi/drm \
+            -I$(SRCDIR)/$(CURDIR)/drm \
+            -I$(SRCDIR)/$(CURDIR)/libdrm \
+            -I$(SRCDIR)/$(CURDIR)/libdrm/intel \
+            -I$(top_srcdir)/include \
+
+INTEL_LIBDRM_C_SOURCES := \
+    $(addprefix $(SRCDIR)/$(CURDIR)/,$(AROS_LIBDRM_INTEL_SOURCES))
+
+%build_linklib mmake=hidd-intel-libdrm libname=drm_intel objdir=$(GENDIR)/$(CURDIR)/libdrm \
+    files="$(SRCDIR)/$(CURDIR)/libdrm/arosdrm $(SRCDIR)/$(CURDIR)/libdrm/arosdrmmode $(INTEL_LIBDRM_C_SOURCES)" \
+    usesdks="config private"
+
+###############################################
+# DRM core + AROS compat -> libdrm_core.a
+###############################################
+
+USER_INCLUDES := \
+            -I$(SRCDIR)/$(CURDIR)/include \
+            -I$(SRCDIR)/$(CURDIR)/include/drm \
+            -I$(SRCDIR)/$(CURDIR)/include/drm-compat \
+            -I$(SRCDIR)/$(CURDIR)/include/drm-aros \
+            -I$(SRCDIR)/$(CURDIR)/include/uapi/drm \
+            -I$(SRCDIR)/$(CURDIR)/include/uapi \
+            -I$(SRCDIR)/$(CURDIR)/include/sys \
+            -I$(SRCDIR)/$(CURDIR)/drm \
+            -I$(top_srcdir)/include \
+
+USER_CFLAGS += -include stdarg.h
+
+INTEL_DRM_C_SOURCES := \
+            $(addprefix $(SRCDIR)/$(CURDIR)/,$(AROS_DRM_CORE_SOURCES))
+
+%build_linklib mmake=hidd-intel-drm libname=drm_core files="$(INTEL_DRM_C_SOURCES)" sdk=drm usesdks="config private"
+
+#################################################
+# hidd codes -> intel.hidd
+#################################################
+
+INTEL_HIDD_C_SOURCES := \
+            intel_hiddclass \
+            intel_init \
+            intel_bitmapclass \
+            intel_accel \
+            intel_batch \
+            intel_compositorclass \
+
+USER_INCLUDES := \
+            -I$(SRCDIR)/$(CURDIR)/include \
+            -I$(SRCDIR)/$(CURDIR)/include/libdrm/intel \
+            -I$(SRCDIR)/$(CURDIR)/include/libdrm \
+            -I$(SRCDIR)/$(CURDIR)/include/drm \
+            -I$(SRCDIR)/$(CURDIR)/include/drm-compat \
+            -I$(SRCDIR)/$(CURDIR)/include/drm-aros \
+            -I$(SRCDIR)/$(CURDIR)/include/uapi/drm \
+            -I$(SRCDIR)/$(CURDIR)/include/sys \
+            -I$(SRCDIR)/$(CURDIR)/libdrm/intel \
+            -I$(SRCDIR)/$(CURDIR)/libdrm \
+            -I$(SRCDIR)/$(CURDIR)/drm \
+            -I$(SRCDIR)/$(CURDIR)/drm/i915 \
+            -I$(SRCDIR)/$(CURDIR)/xf86-video-intel \
+
+NOWARN_FLAGS := $(NOWARN_UNINITIALIZED) $(NOWARN_STRICT_ALIASING)
+USER_CFLAGS += $(NOWARN_FLAGS) -std=gnu99
+
+USER_LDFLAGS += \
+  -lstdlib -lcrtmod -lcrt
+
+%build_module mmake=hidd-intel modname=intel modtype=hidd \
+    files="$(INTEL_HIDD_C_SOURCES)" alwayscxxlink=yes \
+    uselibs="oop drm_intel drm_core pthread hiddstubs crtmod crt" \
+    usesdks="config private drm"
