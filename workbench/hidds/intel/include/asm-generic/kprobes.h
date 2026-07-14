@@ -1,0 +1,4 @@
+#ifndef _ASM_GENERIC_KPROBES_H
+#define _ASM_GENERIC_KPROBES_H
+
+#endif /* _ASM_GENERIC_KPROBES_H */
