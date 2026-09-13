@@ -91,6 +91,8 @@ $(warning BOOTLOADER_ELTORITO_REL = $(BOOTLOADER_ELTORITO_REL))
 $(TARGET_ISO): $(ISO_DEPS) $(AROSDIR)/.backdrop
 	%mkdirs_q $(AROSDIR)/S
 	$(Q)$(CP) $(SRCDIR)/workbench/s/Startup-Sequence $(AROSDIR)/S/Startup-Sequence
+	$(Q)$(CP) $(SRCDIR)/workbench/s/MountDOSDrivers $(AROSDIR)/S/MountDOSDrivers
+	$(Q)$(CP) $(SRCDIR)/workbench/s/SaveLog $(AROSDIR)/S/SaveLog
 	$(Q)$(MKDIR) -p "$(DISTDIR)"
 	$(Q)$(ISOCMD) \
                 -o $@ \

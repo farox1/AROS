@@ -508,11 +508,23 @@ static UQUAD ia32_tsc_calibrate(apicid_t cpuNum)
             {
                 if ((ecx / 1000) != 0)
                     return ecx * numerator / denominator;
-                ULONG model;
+                ULONG model, family;
                 eax = ebx = ecx = edx = 0;
                 asm volatile("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(0x00000001));
                 model = ((eax & 0xF00000) >>14) | ((eax & 0xF0) >> 4);
-                DCALIB(bug("[Kernel:APIC-IA32.%03u] %s: model = %02x\n", cpuNum, __func__, model);)
+		family = ((eax >> 20) & 0xFF) << 4 | ((eax >> 8) & 0xF);
+                DCALIB(bug("[Kernel:APIC-IA32.%03u] %s: family = %02x, model = %02x\n", cpuNum, __func__, model);)
+		if (family == 0x06)
+                {
+                    if (model == 0x4E || model == 0x5E || model == 0x8E || model == 0x9E)
+                        return 24000000 * numerator / denominator; // 24.0 MHz (Skylake/Kaby Lake/Coffee Lake)
+                    else if (model == 0x5C)
+                        return 19200000 * numerator / denominator; // 19.2 MHz (Apollo Lake)
+                    else if (model == 0x66)
+                        return 24000000 * numerator / denominator; // 24.0 MHz (Cannon Lake)
+                    else if (model == 0x7E || model == 0x7D || model == 0x7A)
+                        return 38400000 * numerator / denominator; // 38.4 MHz (Ice Lake/Tiger Lake)
+                }
                 if (model == 0x4E || model == 0x5E)
                     return 24000000 * numerator / denominator; // 24.0 MHz
                 else if (model == 0x5C)
@@ -537,9 +549,12 @@ static UQUAD ia32_lapic_calibrate(apicid_t cpuNum, IPTR __APICBase)
         {
             eax = ebx = ecx = edx = 0;
             asm volatile("cpuid":"=a"(eax),"=b"(ebx),"=c"(ecx),"=d"(edx):"a"(0x00000016));
-            DCALIB(bug("[Kernel:APIC-IA32.%03u] %s: eax = %08x\n", cpuNum, __func__, eax);)
+            //DCALIB(bug("[Kernel:APIC-IA32.%03u] %s: eax = %08x\n", cpuNum, __func__, eax);)
+	    DCALIB(bug("[Kernel:APIC-IA32.%03u] %s: eax=%u MHz, ebx=%u MHz, ecx=%u MHz\n", cpuNum, __func__, eax, ebx, ecx);)
+            if (ecx > 0)
+                return (ecx * 1000000);  /* Bus/reference clock (APIC timer runs at this rate) */
             if (eax > 0)
-                return (eax * 1000000);
+                return (eax * 1000000);  /* Fallback to base frequency */
         }
     }
 #endif

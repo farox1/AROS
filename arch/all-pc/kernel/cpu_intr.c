@@ -339,6 +339,14 @@ SAVE_XMM_INTO_AREA(localarea)
             }
         }
 
+        if ((int_number == 13) || (int_number == 14))
+        {
+            UQUAD cr2 = 0;
+            __asm__ volatile("mov %%cr2,%0" : "=r"(cr2));
+            bug("[Kernel]" DEBUGCOLOR_SET " %s(%u): RIP=%p CR2=%p" DEBUGCOLOR_RESET "\n",
+                __func__, int_number, (APTR)regs->rip, (APTR)cr2);
+        }
+
         cpu_Trap(regs, error_code, exception_number);
 
         DTRAP(
