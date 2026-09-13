@@ -1,0 +1,3 @@
+#ifndef _ASM_GENERIC_GPIO_H_H
+#define _ASM_GENERIC_GPIO_H_H
+#endif /* _ASM_GENERIC_GPIO_H_H */
