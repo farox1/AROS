@@ -611,6 +611,9 @@ ULONG DoViewFunction(struct View *view, VIEW_FUNC fn, struct GfxBase *GfxBase)
     {
         struct HIDD_ViewPortData *vpd = NULL;
 
+        bug("[DoViewFunction] monitor id=0x%lx flags=0x%x gfxhidd=%p\n",
+            mdd->id, mdd->flags, mdd->gfxhidd);
+
         /*
          * Find the first visible ViewPort for this display. It
          * will be a start of bitmaps chain to process.

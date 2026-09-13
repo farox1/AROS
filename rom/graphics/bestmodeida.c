@@ -380,6 +380,7 @@ static BOOL FindBestModeIDForMonitor(struct monitor_driverdata *monitor, struct 
     ReleaseSemaphore(&CDD(GfxBase)->displaydb_sem);
 
     D(bug("[Gfx] %s: Returning mode ID 0x%08lX\n", __PRETTY_FUNCTION__, args.found_id));
+    bug("[BestModeIDA] returning modeid=0x%08lx\n", args.found_id);
     return args.found_id;
 
     AROS_LIBFUNC_EXIT

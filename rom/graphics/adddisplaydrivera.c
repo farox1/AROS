@@ -359,7 +359,7 @@
     ReleaseSemaphore(&CDD(GfxBase)->displaydb_sem);
 
     /* Set the first non-boot non-planar driver as default */
-    if ((ret == DD_OK) && (!GfxBase->default_monitor) && (!(mdd->flags & DF_BootMode)))
+    if (ret == DD_OK)
     {
         /*
          * Amiga(tm) chipset driver does not become a default.

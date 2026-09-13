@@ -1062,6 +1062,8 @@ static const char THIS_FILE[] = __FILE__;
 
         modeid = BestModeIDA(modetags);
 
+        bug("[OpenScreen] BestModeIDA() returned modeid=0x%08lx\n", modeid);
+
         #ifdef SKINS
         if (modeid == INVALID_ID && workbench)
         {
@@ -1093,6 +1095,7 @@ static const char THIS_FILE[] = __FILE__;
     }
 
     DEBUG_OPENSCREEN(dprintf("OpenScreen: ModeID 0x%08lx\n", modeid));
+    bug("[OpenScreen] final modeid=0x%08lx ok=%d\n", modeid, ok);
 
     InitRastPort(&screen->Screen.RastPort);
     rp_inited = TRUE;

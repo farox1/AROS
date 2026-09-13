@@ -51,6 +51,8 @@
 
     ObtainSemaphore(GfxBase->ActiViewCprSemaphore);
 
+    bug("[LoadView] view=%p ActiView=%p\n", view, GfxBase->ActiView);
+
     if (GfxBase->ActiView != view)
     {
         GfxBase->ActiView = view;

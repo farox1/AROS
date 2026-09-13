@@ -113,6 +113,8 @@ ULONG FindBestModeID(const char *name, ULONG depth, ULONG width, ULONG height, s
     struct GfxBase *GfxBase = GetPrivIBase(IntuitionBase)->GfxBase;
     Object *obj = FindMonitorByName(name, IntuitionBase);
 
+    bug("[FindBestModeID] name=%s obj=0x%p\n", name ? name : "(null)", obj);
+
     if (obj)
     {
         struct TagItem tags[] =

@@ -26,11 +26,14 @@
 {                                                                   \
     OOP_MethodFunc callfunc;                                        \
     register struct IFMethod *ifm;                                  \
-    D(bug("mid=%ld\n", *msg));                                      \
-    ifm = &((struct hiddmeta_inst *)cl)->data.methodtable[*msg];    \
-    D(bug("ifm: func %p, cl %p\n", ifm->MethodFunc, ifm->mClass));  \
+    IPTR _mid = *msg;                                               \
+    ifm = &((struct hiddmeta_inst *)cl)->data.methodtable[_mid];    \
     callfunc = (OOP_MethodFunc)ifm->MethodFunc;                     \
-    return (callfunc(ifm->mClass, o, msg));                         \
+    if (callfunc)                                                   \
+        return (callfunc(ifm->mClass, o, msg));                     \
+    bug("[OOP] IntCallMethod NULL: cl=%s mid=%ld\n",                \
+        ((OOP_Class *)cl)->ClassNode.ln_Name, (LONG)_mid);          \
+    return 0;                                                       \
 }
 
 static VOID get_info_on_ifs(OOP_Class *super, const struct OOP_InterfaceDescr *ifdescr,
@@ -589,7 +592,11 @@ static IPTR HIDD_CoerceMethod(OOP_Class *cl, OOP_Object *o, OOP_Msg msg)
     ifm = &((struct hiddmeta_inst *)cl)->data.methodtable[*msg];
     D(bug("ifm %p func %p, cl %p\n", ifm, ifm->MethodFunc, ifm->mClass));
     coercefunc = (OOP_MethodFunc)ifm->MethodFunc;
-    return (coercefunc(ifm->mClass, o, msg));
+    if (coercefunc)
+        return (coercefunc(ifm->mClass, o, msg));
+    bug("[OOP] CoerceMethod NULL: cl=%s mid=%ld\n",
+        cl->ClassNode.ln_Name, (LONG)*msg);
+    return 0;
 }
 
 /************************
