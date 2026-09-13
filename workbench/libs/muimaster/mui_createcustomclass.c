@@ -8,11 +8,15 @@
 #include <proto/dos.h>
 #include <proto/muimaster.h>
 #include <proto/utility.h>
+#include <exec/tasks.h>
 
 #include "mui.h"
 #include "muimaster_intern.h"
 #include "support.h"
 #include "support_classes.h"
+
+/*#define MYDEBUG 1*/
+#include "debug.h"
 
 /*****************************************************************************
 

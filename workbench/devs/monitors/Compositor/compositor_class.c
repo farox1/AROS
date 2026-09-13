@@ -2,7 +2,7 @@
     Copyright (C) 2010-2022, The AROS Development Team. All rights reserved.
 */
 
-#define DEBUG 0
+#define DEBUG 1
 #if (DEBUG)
 #define DTOGGLE(x) x
 #define DMOVE(x) x
@@ -611,7 +611,28 @@ static BOOL HIDDCompositorToggleCompositing(struct HIDDCompositorData *compdata,
         compdata->displaybitmap = NULL;
     }
 
-    bmtags[0].ti_Tag = BMATags_DisplayID;           bmtags[0].ti_Data = (compdata->displayid | compdata->displaymode);
+    /*
+     * Use the top bitmap as a friend for the displaybitmap allocation when
+     * possible. AllocBitMap() with a valid HIDD friend resolves the display
+     * driver from the friend's own data, so we don't depend on DisplayID.
+     * DisplayID may be invalid (0) for drivers which were added after boot,
+     * because compositor_Setup() is called from driver_Setup() before the
+     * monitor ID is assigned (see AddDisplayDriverA()).
+     */
+    {
+        struct Screen *topScreen = HIDDCompositorFindBitMapScreen(compdata, topnode->bm);
+
+        if (topScreen)
+        {
+            bmtags[0].ti_Tag = BMATags_Friend;
+            bmtags[0].ti_Data = (IPTR)topScreen->RastPort.BitMap;
+        }
+        else
+        {
+            bmtags[0].ti_Tag = BMATags_DisplayID;
+            bmtags[0].ti_Data = (compdata->displayid | compdata->displaymode);
+        }
+    }
     bmtags[1].ti_Tag = TAG_DONE;                    bmtags[1].ti_Data = TAG_DONE;
 
     if ((topnode->topedge > 0) || ((compdata->displayrect.MaxY - compdata->displayrect.MinY + 1) > OOP_GET(topnode->bm, aHidd_BitMap_Height)))
@@ -768,6 +789,15 @@ static BOOL HIDDCompositorToggleCompositing(struct HIDDCompositorData *compdata,
     if (olddisplaybitmap && (olddisplaybitmap != compdata->fb))
     {
         DTOGGLE(bug("[Compositor] %s: Disposing old display bitmap 0x%p\n", __func__, olddisplaybitmap));
+
+        /*
+         * The display bitmap was allocated with a friend (the screen bitmap)
+         * and therefore shares its colormap (HIDD_BMF_SHARED_PIXTAB). Direct
+         * OOP_DisposeObject() would dispose the shared colormap, corrupting
+         * the screen. FreeBitMap() normally protects against this by clearing
+         * the colormap first, so do the same here.
+         */
+        HIDD_BM_SetColorMap(olddisplaybitmap, NULL);
 
         OOP_DisposeObject(olddisplaybitmap);
     }
@@ -1073,7 +1103,7 @@ OOP_Object *METHOD(Compositor, Hidd_Compositor, BitMapStackChanged)
     BOOL newtop = FALSE;
     BOOL ok = TRUE;
 
-    DSTACK(bug("[Compositor] %s: Top bitmap: 0x%lx\n", __func__, msg->data->Bitmap));
+    DSTACK(bug("[Compositor] %s: Top bitmap: 0x%lx\n", __func__, msg->data ? (IPTR)msg->data->Bitmap : 0));
 
     LOCK_COMPOSITOR_WRITE
 

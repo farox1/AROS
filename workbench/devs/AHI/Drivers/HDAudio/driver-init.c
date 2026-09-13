@@ -102,6 +102,24 @@ BOOL DriverInit(struct DriverBase* ahisubbase)
     vendor_device_list[0].device = 0x27D8;
     vendor_device_list_size++;
 
+    // Add Intel Sunrise Point-H (Skylake PCH, 100 Series)
+    vendor_device_list[1].vendor = 0x8086;
+    vendor_device_list[1].device = 0xA170;
+    vendor_device_list_size++;
+
+    vendor_device_list[2].vendor = 0x8086;
+    vendor_device_list[2].device = 0xA171;
+    vendor_device_list_size++;
+
+    // Add Intel Sunrise Point-LP (Skylake mobile PCH)
+    vendor_device_list[3].vendor = 0x8086;
+    vendor_device_list[3].device = 0x9D70;
+    vendor_device_list_size++;
+
+    vendor_device_list[4].vendor = 0x8086;
+    vendor_device_list[4].device = 0x9D71;
+    vendor_device_list_size++;
+
     // Then parse the hdaudio.config file, if available in ENV:
     parse_config_file();
 

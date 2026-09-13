@@ -87,13 +87,22 @@ int main(void)
                 cl = OOP_FindClass(args.hidd);
                 if (cl)
                 {
+                    bug("[Wrapper] %s: calling AddDisplayDriverA\n", myname);
                     if (AddDisplayDriverA(cl, NULL, NULL))
                     {
+                        bug("[Wrapper] %s: AddDisplayDriverA FAILED\n", myname);
                         res = RETURN_FAIL;
+                    }
+                    else
+                    {
+                        bug("[Wrapper] %s: AddDisplayDriverA OK\n", myname);
                     }
                 }
                 else
+                {
+                    bug("[Wrapper] %s: class not found after opening library\n", myname);
                     res = RETURN_ERROR;
+                }
                 
                 if ((res != RETURN_OK) && gfxlib)
                     CloseLibrary(gfxlib);
@@ -109,5 +118,6 @@ int main(void)
     if (olddir)
         CurrentDir(olddir);
 
+    bug("[Wrapper] %s: exiting with res=%d\n", myname, res);
     return res;
 }

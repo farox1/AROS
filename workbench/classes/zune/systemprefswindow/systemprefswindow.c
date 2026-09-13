@@ -246,7 +246,8 @@ IPTR SystemPrefsWindow__OM_DISPOSE
     SETUP_INST_DATA;
 
     if (data->spwd_Catalog != NULL) CloseCatalog(data->spwd_Catalog);
-    FreeAslRequest(data->spwd_FileRequester);
+    if (data->spwd_FileRequester != NULL)
+        FreeAslRequest(data->spwd_FileRequester);
 
     return DoSuperMethodA(CLASS, self, message);
 }

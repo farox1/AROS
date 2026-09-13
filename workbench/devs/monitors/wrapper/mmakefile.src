@@ -26,6 +26,7 @@ endif
 devs-monitors-wrapper-copy: \
 			    $(STORAGEDIR)/ATI \
 			    $(PCDEVSDIR)/NVidia \
+                $(PCDEVSDIR)/IntelHD \
 			    $(PCDEVSDIR)/VMWare \
 			    $(AMIGADEVSDIR)/SAGA
 
@@ -36,6 +37,11 @@ $(STORAGEDIR)/ATI: $(STORAGEDIR)/Wrapper | $(PCDEVSDIR)
 $(PCDEVSDIR)/NVidia: $(STORAGEDIR)/Wrapper | $(PCDEVSDIR)
 	%fileactionmsg msg="Creating   " file="$@" elipses="..."
 	@$(CP) -f $< $@
+
+$(PCDEVSDIR)/IntelHD: $(STORAGEDIR)/Wrapper | $(PCDEVSDIR)
+	%fileactionmsg msg="Creating   " file="$@" elipses="..."
+	@$(CP) -f $< $@
+
 
 $(PCDEVSDIR)/VMWare: $(STORAGEDIR)/Wrapper | $(PCDEVSDIR)
 	%fileactionmsg msg="Creating   " file="$@" elipses="..."
