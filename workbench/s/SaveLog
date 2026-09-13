@@ -1,0 +1,11 @@
+; Copy the RAM-captured debug log to the DATA:/SYS: volume root
+; shortly after boot so it can be analysed on the host.
+; DATA: exists once DOSDrivers are mounted. Falls back to SYS:.
+Delay 600
+If EXISTS "RAM:out.log"
+    If EXISTS "DATA:"
+        Copy "RAM:out.log" "DATA:out.log" QUIET
+    Else
+        Copy "RAM:out.log" "SYS:out.log" QUIET
+    EndIf
+EndIf

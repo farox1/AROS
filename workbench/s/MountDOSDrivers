@@ -1,0 +1,6 @@
+; Deferred USB volume mounting - runs in the background so that
+; USB mass-storage stalls during mount don't block the desktop boot.
+; Runs a little while after startup has progressed.
+Delay 300
+Automount >NIL:
+Mount >NIL: "DEVS:DOSDrivers/~((.#?)|(#?.info)|(#?.dbg))"

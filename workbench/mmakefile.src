@@ -37,7 +37,8 @@ include $(SRCDIR)/config/aros.cfg
 #MM    workbench-hidds-nvidia	  \
 #MM    workbench-hidds-radeon	  \
 #MM    devs-monitors-intelgma     \
-#MM    workbench-hidds-nouveau
+#MM    workbench-hidds-nouveau    \
+#MM    workbench-hidds-intel
 
 WBSTARTUPDIR := $(AROSDIR)/WBStartup
 WBSTORAGEDIR := $(AROSDIR)/Storage
