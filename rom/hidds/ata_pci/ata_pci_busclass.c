@@ -38,6 +38,19 @@ AROS_INTH1(ata_PCI_Interrupt, struct PCIATABusData *, data)
     UBYTE status;
 
     /*
+     * A shared/spurious legacy IRQ can arrive before the bus is fully probed
+     * (or on a controller that only reports a bogus legacy IO base). Reading
+     * ATA registers through an invalid IO base faults and corrupts exec's heap.
+     * Refuse to service the interrupt unless we have a real bus + IO base.
+     */
+    if (!data || !data->bus || !data->bus->atapb_IOBase)
+    {
+        bug("[ATA:PCI] %s: spurious IRQ before bus ready (data=%p bus=%p)\n",
+            __func__, data, data ? data->bus : NULL);
+        return FALSE;
+    }
+
+    /*
      * The DMA status register indicates all interrupt types, not
      * just DMA interrupts. However, if there's no DMA port, we have
      * to rely on the busy flag, which is incompatible with IRQ sharing.

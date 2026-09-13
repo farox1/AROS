@@ -580,6 +580,24 @@ static int ata_bus_Detect(struct atapciBase *base)
 
             while (LegacyBuses[n].lb_Port)
             {
+                /*
+                 * Only register a legacy ISA IDE channel if a controller is
+                 * actually decoding those ports. On modern machines (e.g. Skylake)
+                 * with no IDE hardware the bus floats and reads back 0xFF; probing
+                 * it anyway registers IRQ 14/15, whose handler then faults on a
+                 * spurious interrupt and corrupts exec's heap. Reading the ATA
+                 * status register once and rejecting the all-ones float is the
+                 * classic presence test.
+                 */
+                UBYTE probe = inb((port_t)(LegacyBuses[n].lb_Port + 7));
+                if (probe == 0xFF || probe == 0x00)
+                {
+                    D(bug("[ATA:PCI] Legacy bus '%s' absent (status 0x%02x), skipping\n",
+                          LegacyBuses[n].lb_Name, probe));
+                    n++;
+                    continue;
+                }
+
                 probedbus = AllocVec(sizeof(struct ata_ProbedBus), MEMF_ANY);
                 if (probedbus)
                 {

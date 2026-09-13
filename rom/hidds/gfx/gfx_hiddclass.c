@@ -1919,8 +1919,8 @@ static HIDDT_ModeID *querymode(struct modequery *mq)
     syncidx = mq->syncidx;
     pfidx   = mq->pfidx;
     /* Get the pf and sync objects */
-    pf   = mq->mdb->pixfmts[syncidx];
-    sync = mq->mdb->syncs[pfidx];
+    pf   = mq->mdb->pixfmts[pfidx];
+    sync = mq->mdb->syncs[syncidx];
     
 
     /* Check that the mode is really usable */

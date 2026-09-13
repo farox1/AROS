@@ -47,7 +47,7 @@
 
 ******************************************************************************/
 
-#define DEBUG 0
+#define DEBUG 1
 
 #include <aros/debug.h>
 #include <dos/dosextens.h>
@@ -184,6 +184,39 @@ AROS_SH2H(AROSMonDrvs, 1.0, "Load AROS Monitor and Compositor drivers",
     struct Library *IconBase;
     BPTR dir, olddir;
     BOOL res = TRUE;
+
+    struct Process *me = (struct Process *)FindTask(NULL);
+    APTR win = me->pr_WindowPtr;
+    me->pr_WindowPtr = (APTR)-1;
+    BPTR log = BNULL;
+    do
+    {
+        /* Write the Sashimi capture directly to the boot volume (SYS:) so it
+           survives a crash without needing a shell/copy loop. Fall back to RAM:
+           if the boot volume isn't ready yet. The S:SaveLog script then
+           promotes the log to DATA:out.log once the data volume is mounted.
+           NOTE: keep the open sequence (SYS: then RAM:) identical to the
+           deployed binary on the PC and laptop test media. */
+        log = Open("SYS:out.log", MODE_NEWFILE);
+        if (log == BNULL)
+        {
+            bug("Opening RAM:out.log (SYS: not ready)\n");
+            log = Open("RAM:out.log", MODE_NEWFILE);
+        }
+        if (log == BNULL) { bug("Failed. Sleep for 1 second.\n"); Delay(50); }
+    } while (log == BNULL);
+    me->pr_WindowPtr = win;
+
+    SystemTags("SYS:Tools/Debug/Sashimi", SYS_Output, log, SYS_Asynch, TRUE, NP_Priority, 20, TAG_END);
+    Delay(100);
+
+    bug("AAAAAAAAAAaa3\n");
+    // // Flush(log);
+    // BPTR zz = Open("DATA:test.file", MODE_NEWFILE);
+    // FPrintf(zz, "AAA");
+    // Close(zz);
+    // Delay(100);
+
 
     dir = Lock(MONITORS_DIR, SHARED_LOCK);
     D(bug("[LoadMonDrvs] Monitors directory 0x%p\n", dir));

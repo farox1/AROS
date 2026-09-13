@@ -254,29 +254,44 @@ AROS_UFH3(void, select_function,
     if (active != MUIV_List_Active_Off)
     {
         IPTR val, val2, val3;
+        IPTR pciClass = 0, pciSubClass = 0, pciProgIf = 0;
         static char buf[MAX_STRING_LENGTH + 1];
 
         static char ranges[6][60];
         DoMethod(object, MUIM_List_GetEntry, active, (IPTR)&obj);
 
         OOP_GetAttr(obj, aHidd_PCIDevice_Driver, (APTR)&drv);
-        OOP_GetAttr(drv, aHidd_Name, (APTR)&str);
-        set(StrDriverName, MUIA_Text_Contents, str);
-        strcpy(SaveDeviceInfo.Driver_name, str); //Save Debug Info
-        OOP_GetAttr(drv, aHidd_HardwareName, (APTR)&str);
-        set(StrDriverHWName, MUIA_Text_Contents, str);
-        strcpy(SaveDeviceInfo.Hardware_info, str); //Save Debug Info
-        OOP_GetAttr(drv, aHidd_PCIDriver_IOBase, &val);
-        snprintf(SaveDeviceInfo.IOBase, 11, "0x%08lx", val);
-        set(StrIOBase, MUIA_Text_Contents, SaveDeviceInfo.IOBase);
-        OOP_GetAttr(drv, aHidd_PCIDriver_DirectBus, (APTR)&val);
-        set(StrDriverDirect, MUIA_Text_Contents, (IPTR)((val)?_(MSG_YES):_(MSG_NO)));
-        strcpy(SaveDeviceInfo.Direct_bus, (val)?_(MSG_YES):_(MSG_NO)); //Save Debug Info
+        if (drv)
+        {
+            OOP_GetAttr(drv, aHidd_Name, (APTR)&str);
+            set(StrDriverName, MUIA_Text_Contents, str ? str : (STRPTR)_(MSG_NA));
+            strcpy(SaveDeviceInfo.Driver_name, str ? str : _(MSG_NA)); //Save Debug Info
+            OOP_GetAttr(drv, aHidd_HardwareName, (APTR)&str);
+            set(StrDriverHWName, MUIA_Text_Contents, str ? str : (STRPTR)_(MSG_NA));
+            strcpy(SaveDeviceInfo.Hardware_info, str ? str : _(MSG_NA)); //Save Debug Info
+            OOP_GetAttr(drv, aHidd_PCIDriver_IOBase, &val);
+            snprintf(SaveDeviceInfo.IOBase, 11, "0x%08lx", val);
+            set(StrIOBase, MUIA_Text_Contents, SaveDeviceInfo.IOBase);
+            OOP_GetAttr(drv, aHidd_PCIDriver_DirectBus, (APTR)&val);
+            set(StrDriverDirect, MUIA_Text_Contents, (IPTR)((val)?_(MSG_YES):_(MSG_NO)));
+            strcpy(SaveDeviceInfo.Direct_bus, (val)?_(MSG_YES):_(MSG_NO)); //Save Debug Info
+        }
+        else
+        {
+            set(StrDriverName, MUIA_Text_Contents, _(MSG_NA));
+            set(StrDriverHWName, MUIA_Text_Contents, _(MSG_NA));
+            strcpy(SaveDeviceInfo.Driver_name, _(MSG_NA));
+            strcpy(SaveDeviceInfo.Hardware_info, _(MSG_NA));
+            set(StrIOBase, MUIA_Text_Contents, _(MSG_NA));
+            set(StrDriverDirect, MUIA_Text_Contents, _(MSG_NA));
+        }
         OOP_GetAttr(obj, aHidd_PCIDevice_ClassDesc, (APTR)&class);
         OOP_GetAttr(obj, aHidd_PCIDevice_SubClassDesc, (APTR)&subclass);
         OOP_GetAttr(obj, aHidd_PCIDevice_InterfaceDesc, (APTR)&interface);
-        snprintf(buf, MAX_STRING_LENGTH, "%s %s %s", class, subclass,
-            interface);
+        snprintf(buf, MAX_STRING_LENGTH, "%s %s %s",
+            class ? class : (STRPTR)_(MSG_NA),
+            subclass ? subclass : (STRPTR)_(MSG_NA),
+            interface ? interface : (STRPTR)_(MSG_NA));
         set(StrDescription, MUIA_Text_Contents, buf);
         strcpy(SaveDeviceInfo.Description, buf); //Save Debug Info
         OOP_GetAttr(obj, aHidd_PCIDevice_VendorID, (APTR)&val);
@@ -326,16 +341,19 @@ AROS_UFH3(void, select_function,
         strcpy(SaveDeviceInfo.RevisionID, buf); //Save Debug Info
 
         OOP_GetAttr(obj, aHidd_PCIDevice_Interface, (APTR)&val);
+        pciProgIf = val;
         snprintf(buf, MAX_STRING_LENGTH, "0x%02lx", val);
         set(Interface, MUIA_Text_Contents, buf);
         strcpy(SaveDeviceInfo.Interface, buf); //Save Debug Info
 
         OOP_GetAttr(obj, aHidd_PCIDevice_Class, (APTR)&val);
+        pciClass = val;
         snprintf(buf, MAX_STRING_LENGTH, "0x%02lx", val);
         set(_Class, MUIA_Text_Contents, buf);
         strcpy(SaveDeviceInfo.Class, buf); //Save Debug Info
 
         OOP_GetAttr(obj, aHidd_PCIDevice_SubClass, (APTR)&val);
+        pciSubClass = val;
         snprintf(buf, MAX_STRING_LENGTH, "0x%02lx", val);
         set(SubClass, MUIA_Text_Contents, buf);
         strcpy(SaveDeviceInfo.Subclass, buf); //Save Debug Info
@@ -376,14 +394,21 @@ AROS_UFH3(void, select_function,
         }
 
         OOP_GetAttr(obj, aHidd_PCIDevice_ExtendedCapabilitySerialNumber, (APTR)&val);
-        if(val)
+        /*
+         * USB xHCI controllers (class 0x0C/0x03/0x30, e.g. the HP Skylake
+         * 00:14.0) can stall when their config space is read via ECAM,
+         * freezing PCITool and slowing the whole system. Only for that
+         * device type skip the (cosmetic) serial-number config read and show
+         * N/A; every other device keeps it.
+         */
+        if(val && !((pciClass == 0x0C) && (pciSubClass == 0x03) && (pciProgIf == 0x30)))
         {
             val2 = HIDD_PCIDevice_ReadConfigLong(obj, val+4);
             val3 = HIDD_PCIDevice_ReadConfigLong(obj, val+8);
             snprintf(buf, MAX_STRING_LENGTH, "%08lx:%08lx", val3, val2);
             set(PCIeSerialNumber, MUIA_Text_Contents, buf);
         }
-        else set(PCIeSerialNumber, MUIA_Text_Contents, _(MSG_NA));
+        else set(PCIeSerialNumber, MUIA_Text_Contents, _(MSG_NA));;
 
         DoMethod(RangeList, MUIM_List_Clear);
 
