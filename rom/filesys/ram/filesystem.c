@@ -987,7 +987,7 @@ struct Lock *LockObject(struct Handler *handler, struct Object *object,
    LONG access)
 {
    struct Lock *lock;
-   LONG error = 0, lock_access;
+   LONG error = 0;
 
    object = GetRealObject(object);
    lock = object->lock;
@@ -1012,8 +1012,14 @@ struct Lock *LockObject(struct Handler *handler, struct Object *object,
    }
    else
    {
-      lock_access = ((struct FileLock *)lock)->fl_Access;
-      if(access == ACCESS_WRITE || lock_access == ACCESS_WRITE)
+      /*
+       * A write lock is exclusive, so a new writer conflicts with any
+       * existing lock. Read locks are shared: allow reading a file that is
+       * already open (e.g. reading a log file while Sashimi writes it).
+       * RAM data is in memory, so a reader simply sees the bytes written so
+       * far.
+       */
+      if(access == ACCESS_WRITE)
       {
          lock = NULL;
          error = ERROR_OBJECT_IN_USE;
