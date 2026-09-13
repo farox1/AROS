@@ -14,7 +14,7 @@
 #include <graphics/driver.h>
 #include <proto/utility.h>
 
-#define DEBUG 0
+#define DEBUG 1 /// was 0
 #include <aros/debug.h>
 #include <proto/oop.h>
 
@@ -316,7 +316,11 @@ BOOL HIDDNouveauSwitchToVideoMode(OOP_Object * bm)
     gfxdata = OOP_INST_DATA(OOP_OCLASS(gfx), gfx);
     selectedconnector = (drmModeConnectorPtr)gfxdata->selectedconnector;
 
-    D(bug("[Nouveau] HIDDNouveauSwitchToVideoMode, bm: 0x%x\n", bm));
+            bug("[Nouveau] HIDDNouveauSwitchToVideoMode, bm=%p, w=%d, h=%d, depth=%d, pitch=%d, fbid=%d\n",
+                bm, bmdata->drawable.width, bmdata->drawable.height, 
+                bmdata->drawable.depth, bmdata->pitch, bmdata->fbid);
+    
+    bug("[Nouveau] SwitchToVideoMode ENTER bm=%p\n", bm);
     
     /* We should be able to get modeID from the bitmap */
     OOP_GetAttr(bm, aHidd_BitMap_ModeID, &modeid);
@@ -402,6 +406,34 @@ BOOL HIDDNouveauSwitchToVideoMode(OOP_Object * bm)
         D(bug("[Nouveau] Not able to set crtc\n"));
         UNLOCK_ENGINE
         return FALSE;        
+    }
+
+    /* Clear framebuffer to black to avoid displaying uninitialized VRAM garbage */
+    switch(carddata->Architecture)
+    {
+    case NV_ARCH_03:
+    case NV_ARCH_04:
+    case NV_ARCH_10:
+    case NV_ARCH_20:
+    case NV_ARCH_30:
+    case NV_ARCH_40:
+        HIDDNouveauNV04FillSolidRect(carddata, bmdata, 0, 0,
+            bmdata->drawable.width - 1, bmdata->drawable.height - 1,
+            3 /* GXcopy */, 0);
+        break;
+    case NV_TESLA:
+        HIDDNouveauNV50FillSolidRect(carddata, bmdata, 0, 0,
+            bmdata->drawable.width - 1, bmdata->drawable.height - 1,
+            3 /* GXcopy */, 0);
+        break;
+    case NV_FERMI:
+    case NV_KEPLER:
+    case NV_MAXWELL:
+    case NV_PASCAL:
+        HIDDNouveauNVC0FillSolidRect(carddata, bmdata, 0, 0,
+            bmdata->drawable.width - 1, bmdata->drawable.height - 1,
+            3 /* GXcopy */, 0);
+        break;
     }
 
     HIDDNouveauShowCursor(gfx, TRUE);
@@ -628,7 +660,8 @@ OOP_Object * METHOD(Nouveau, Root, New)
 
         o = (OOP_Object *)OOP_DoSuperMethod(cl, o, (OOP_Msg)msg);
 
-        D(bug("[Nouveau] GFX New\n"));
+        //D(bug("[Nouveau] GFX New\n"));
+        bug("[Nouveau] GFX New, object=%p\n", o);
 
         if (o)
         {
@@ -639,6 +672,12 @@ OOP_Object * METHOD(Nouveau, Root, New)
             gfxdata->selectedconnector = selectedconnector;
             carddata->dev = nvdev;
             carddata->client = nvclient;
+
+            bug("[Nouveau] chipset=0x%x, conn_id=%d, crtc_id=%d, modes=%d\n",
+                carddata->dev->chipset, 
+                selectedconnector->connector_id,
+                selectedcrtcid,
+                selectedconnector->count_modes);
             ULONG gartsize = 0;
             UQUAD value;
 
@@ -752,13 +791,89 @@ OOP_Object * METHOD(Nouveau, Root, New)
                 /* TODO: Check if object was created, how to handle ? */
             }
 
+            bug("[Nouveau] mode[0]: %dx%d @ %dHz, connector=%d\n",
+                selectedconnector->modes[0].hdisplay,
+                selectedconnector->modes[0].vdisplay,
+                selectedconnector->modes[0].vrefresh,
+                selectedconnector->connector_id);
+
+            /* Force initial screen to avoid displaying VBIOS garbage.
+             * On multi-GPU systems, the monitor system may never call
+             * ShowViewPorts if this card is not the primary display. */
+            if (gfxdata->compositor && selectedconnector->count_modes > 0)
+            {
+                OOP_Object *screenbm;
+                struct TagItem bmtags[5];
+                struct pHidd_Gfx_CreateObject cmsg;
+
+                bmtags[0].ti_Tag = aHidd_BitMap_ModeID;
+                bmtags[0].ti_Data = 0;
+                bmtags[1].ti_Tag = aHidd_BitMap_Displayable;
+                bmtags[1].ti_Data = TRUE;
+                bmtags[2].ti_Tag = aHidd_BitMap_Width;
+                bmtags[2].ti_Data = selectedconnector->modes[0].hdisplay;
+                bmtags[3].ti_Tag = aHidd_BitMap_Height;
+                bmtags[3].ti_Data = selectedconnector->modes[0].vdisplay;
+                bmtags[4].ti_Tag = TAG_DONE;
+                bmtags[4].ti_Data = 0;
+
+                bug("[Nouveau] Creating initial screen bitmap %dx%d\n",
+                    (int)bmtags[2].ti_Data, (int)bmtags[3].ti_Data);
+
+                cmsg.mID = OOP_GetMethodID(IID_Hidd_Gfx, moHidd_Gfx_CreateObject);
+                cmsg.cl = SD(cl)->basebm;
+                cmsg.attrList = bmtags;
+
+                screenbm = (OOP_Object *)OOP_DoMethod(o, (OOP_Msg)&cmsg);
+                if (screenbm)
+                {
+                    struct HIDD_ViewPortData vpdata;
+                    struct pHidd_Compositor_BitMapStackChanged bscmsg;
+
+                    bug("[Nouveau] Screen bitmap created %p, setting mode\n", screenbm);
+                    HIDDNouveauSwitchToVideoMode(screenbm);
+
+                    /* Also activate the compositor so the system can update
+                     * the display even when this card is not the primary GPU. */
+                    vpdata.Next = NULL;
+                    vpdata.Bitmap = screenbm;
+                    vpdata.vpe = NULL;
+                    vpdata.UserData = NULL;
+
+                    bscmsg.mID = OOP_GetMethodID(IID_Hidd_Compositor,
+                        moHidd_Compositor_BitMapStackChanged);
+                    bscmsg.data = &vpdata;
+
+                    bug("[Nouveau] Activating compositor with bitmap %p\n", screenbm);
+                    OOP_DoMethod(gfxdata->compositor, (OOP_Msg)&bscmsg);
+                }
+                else
+                {
+                    bug("[Nouveau] Failed to create screen bitmap\n");
+                }
+            }
+
         }
         UNLOCK_ENGINE
+
+        bug("[Nouveau] Root::New returning %p\n", o);
+
+        /* Verify sync/MonitorSpec for mode 0 - needed for AddDisplayDriverA */
+        {
+            OOP_Object *sync0 = HIDD_Gfx_GetSync(o, 0);
+            APTR ms = NULL;
+
+            if (sync0)
+                OOP_GetAttr(sync0, aHidd_Sync_MonitorSpec, (IPTR *)&ms);
+
+            bug("[Nouveau] GetSync(0)=%p MonitorSpec=%p\n", sync0, ms);
+        }
 
         return o;
     }
     UNLOCK_ENGINE
 
+    bug("[Nouveau] Root::New FAILED returning NULL\n");
     return NULL;
 }
 
@@ -973,7 +1088,8 @@ ULONG METHOD(Nouveau, Hidd_Gfx, ShowViewPorts)
         data : msg->Data
     };
 
-    D(bug("[Nouveau] ShowViewPorts enter TopLevelBM %x\n", (msg->Data ? (msg->Data->Bitmap) : NULL)));
+    bug("[Nouveau] ShowViewPorts ENTER data=%p bitmap=%p\n",
+        msg->Data, msg->Data ? msg->Data->Bitmap : NULL);
 
     OOP_DoMethod(gfxdata->compositor, (OOP_Msg)&bscmsg);
 
@@ -1084,7 +1200,7 @@ static struct HIDD_ModeProperties modeprops =
 {
     DIPF_IS_SPRITES,
     1,
-    COMPF_ABOVE
+    0
 };
 
 ULONG METHOD(Nouveau, Hidd_Gfx, ModeProperties)

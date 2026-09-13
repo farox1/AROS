@@ -203,32 +203,18 @@ nv84_fence_create(struct nouveau_drm *drm)
 			  * will lose CPU/GPU coherency!
 			  */
 			 TTM_PL_FLAG_TT | TTM_PL_FLAG_UNCACHED;
-	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
-			     domain, 0, 0, NULL, NULL, &priv->bo);
-	if (ret == 0) {
-		ret = nouveau_bo_pin(priv->bo, domain, false);
-		if (ret == 0) {
-			ret = nouveau_bo_map(priv->bo);
-
-#if 1
-bug("----------- VRAM TEST START\n");
-for (int i = 0; i < 1024; i++)
-{
-nouveau_bo_wr32(priv->bo, i, 0xFFFFFFFF);
-ULONG xxx = nouveau_bo_rd32(priv->bo, i);
-if (xxx != 0xFFFFFFFF)
-{
-    bug("%04d: 0x%x\n", i, xxx);
-}
-}
-bug("----------- TEST END\n");
-#endif
-			if (ret)
-				nouveau_bo_unpin(priv->bo);
-		}
-		if (ret)
-			nouveau_bo_ref(NULL, &priv->bo);
-	}
+ 	ret = nouveau_bo_new(&drm->client, 16 * drm->chan.nr, 0,
+ 			     domain, 0, 0, NULL, NULL, &priv->bo);
+ 	if (ret == 0) {
+ 		ret = nouveau_bo_pin(priv->bo, domain, false);
+ 		if (ret == 0) {
+ 			ret = nouveau_bo_map(priv->bo);
+ 			if (ret)
+ 				nouveau_bo_unpin(priv->bo);
+ 		}
+ 		if (ret)
+ 			nouveau_bo_ref(NULL, &priv->bo);
+ 	}
 
 	if (ret)
 		nv84_fence_destroy(drm);

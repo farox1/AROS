@@ -307,6 +307,7 @@ static int
 nouveau_fence_wait_busy(struct nouveau_fence *fence, bool intr)
 {
 	int ret = 0;
+	unsigned long limit = get_jiffies() + (15 * HZ);
 
 NOT_IMPLEMENTED_CONTINUE
 #if 0
@@ -328,7 +329,13 @@ NOT_IMPLEMENTED_CONTINUE
 
 	__set_current_state(TASK_RUNNING);
 #else
+	/* Bounded busy-wait: never spin forever if the GPU fence is not
+	   signaled (wedged GPU / missing IRQ), just report -EBUSY. */
 	while (!nouveau_fence_done(fence)) {
+		if ((long)(get_jiffies() - limit) >= 0) {
+			ret = -EBUSY;
+			break;
+		}
 	}
 #endif
 	return ret;

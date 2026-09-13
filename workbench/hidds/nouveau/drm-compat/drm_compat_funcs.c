@@ -1,5 +1,5 @@
 /*
-    Copyright (C) 2009-2026, The AROS Development Team. All rights reserved.
+    Copyright 2009-2026, The AROS Development Team. All rights reserved.
 */
 
 #include <drm-compat/drm_compat_funcs.h>
@@ -362,19 +362,25 @@ unsigned long get_jiffies()
 {
     struct timeval tv;
     unsigned long val = 0;
-NOT_IMPLEMENTED_STOP
+
     gettimeofday(&tv, NULL);
 
-    val = tv.tv_sec * 1000000 + tv.tv_usec; /* Yes, overflow */
-
-    /* TODO: Maybe make sure that each call to get_jiffies returns a different value? */
+    /* 1 jiffy == 1 ms (HZ = 1000) */
+    val = ((unsigned long) tv.tv_sec * 1000) + (tv.tv_usec / 1000);
 
     return val;
 }
 
 unsigned int jiffies_to_usecs(const unsigned long j)
 {
-    return j * (1000 / HZ) /* ms */ * 1000;
+    unsigned long us = j * (1000 / HZ) /* ms */ * 1000;
+
+    /* Clamp so an unbound timeout (e.g. LONG_MAX) cannot turn into a
+       ~71 minute busy-wait that wedges the whole system. */
+    if (us > 0xffffffffUL)
+        us = 0xffffffffUL;
+
+    return (unsigned int)us;
 }
 
 unsigned long usecs_to_jiffies(unsigned int us) /* this function rounds up the result */

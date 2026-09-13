@@ -28,6 +28,10 @@
 #include <core/pci.h>
 #include <subdev/mc.h>
 
+#if defined(__AROS__)
+extern unsigned long get_jiffies(void);
+#endif
+
 u32
 nvkm_pci_rd32(struct nvkm_pci *pci, u16 addr)
 {
@@ -74,8 +78,35 @@ nvkm_pci_intr(int irq, void *arg)
 
 	if (pci->irq < 0)
 		return IRQ_HANDLED;
-
-	nvkm_mc_intr_unarm(device);
+#if defined(__AROS__)
+	/* AROS: detect a sticking level-triggered GPU interrupt without any
+	 * time source (get_jiffies()/gettimeofday() are NOT interrupt-safe).
+	 * While the ISR is active the MC status register (0x000100) reflects
+	 * real GPU progress; if the exact same status repeats hundreds of times
+	 * without ever changing, the responsible engine is wedged and every
+	 * "rearm" would re-fire the IRQ immediately, wedging the whole CPU.
+	 * Disarm the GPU interrupts for good and rely on the bounded polled
+	 * fence waits. */
+	{
+		static u32 last_stat;
+		static unsigned int stalls;
+		u32 stat = nvkm_rd32(device, 0x000100);
+		if (stat == 0) {
+			/* Spurious/shared-line interrupt: not the GPU. */
+			last_stat = 0;
+			stalls = 0;
+		} else if (stat != last_stat) {
+			last_stat = stat;
+			stalls = 0;
+		} else if (++stalls > 500) {
+			nvkm_mc_intr_unarm(device);
+			nvkm_error(&pci->subdev, "pci: GPU IRQ STORM detected "
+				   "(mc stat %08x) - GPU interrupts disabled, "
+				   "polled fence waits\n", stat);
+			return IRQ_NONE;
+		}
+	}
+#endif
 	if (pci->msi)
 		pci->func->msi_rearm(pci);
 	nvkm_mc_intr(device, &handled);

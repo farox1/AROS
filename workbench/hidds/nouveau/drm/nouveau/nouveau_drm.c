@@ -663,6 +663,11 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	}
 #endif
 
+#if defined(__AROS__)
+	nouveau_cli_fini(&drm->client);
+	nouveau_cli_fini(&drm->master);
+	kfree(drm);
+#else
 NOT_IMPLEMENTED_STOP
 #if 0
 	nouveau_led_fini(dev);
@@ -685,6 +690,7 @@ NOT_IMPLEMENTED_STOP
 	nouveau_cli_fini(&drm->client);
 	nouveau_cli_fini(&drm->master);
 	kfree(drm);
+#endif
 #endif
 }
 
@@ -859,15 +865,17 @@ NOT_IMPLEMENTED_CONTINUE
 fail_drm_dev_init:
 	nouveau_drm_device_fini(drm_dev);
 fail_pci:
-NOT_IMPLEMENTED_STOP
+	/* FIXME: AROS: pci_disable_device() is currently a no-op stub */
 #if 0
 	pci_disable_device(pdev);
 #endif
+	return ret;
 fail_drm:
-NOT_IMPLEMENTED_STOP
+	/* FIXME: AROS: drm_dev_put() is currently a no-op stub */
 #if 0
 	drm_dev_put(drm_dev);
 #endif
+	return ret;
 fail_nvkm:
 	nvkm_device_del(&device);
 	return ret;

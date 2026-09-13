@@ -2435,6 +2435,7 @@ nv50_display_create(struct drm_device *dev)
 				ret = nv50_sor_create(connector, dcbe);
 				break;
 			case DCB_OUTPUT_ANALOG:
+			case DCB_OUTPUT_TV:
 				ret = nv50_dac_create(connector, dcbe);
 				break;
 			default:

@@ -111,13 +111,20 @@ void dma_fence_enable_sw_signaling(struct dma_fence *fence)
         fence->ops->enable_signaling(fence);
 }
 
+/* Cap for fence waits that would otherwise block forever. A GPU fence
+   that does not complete within this window means the GPU/IRQ path is
+   wedged; hanging here only freezes the whole desktop. */
+#define DMA_FENCE_WAIT_TIMEOUT   (30 * HZ)
+
 signed long dma_fence_wait(struct dma_fence *fence, bool intr)
 {
     signed long ret;
 
-    ret = dma_fence_wait_timeout(fence, intr, LONG_MAX);
+    ret = dma_fence_wait_timeout(fence, intr, DMA_FENCE_WAIT_TIMEOUT);
     if (ret > 0)
         return 0;
+    if (ret == 0)
+        return -EBUSY;
     return ret;
 }
 
@@ -127,6 +134,9 @@ long dma_fence_wait_timeout(struct dma_fence *fence, bool intr, unsigned long ti
         return fence->ops->wait(fence, intr, timeout);
 
     dma_fence_enable_sw_signaling(fence);
+
+    if (timeout > DMA_FENCE_WAIT_TIMEOUT)
+        timeout = DMA_FENCE_WAIT_TIMEOUT;
 
     if (dma_fence_is_signaled(fence))
         return timeout ? timeout : 1;
@@ -227,6 +237,9 @@ long dma_resv_wait_timeout_rcu(struct dma_resv *resv, bool wait_all,
 
     if (dma_resv_all_fences_signaled(resv, wait_all))
         return timeout ? timeout : 1;
+
+    if (timeout > DMA_FENCE_WAIT_TIMEOUT)
+        timeout = DMA_FENCE_WAIT_TIMEOUT;
 
     unsigned int usecs = jiffies_to_usecs(timeout);
     unsigned int pstep = 5; /* progressive sleep step in us */

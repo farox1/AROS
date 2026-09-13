@@ -12,6 +12,7 @@ extern OOP_Object *pciBus;
 struct pci_dev;
 
 struct pci_dev *drm_aros_pci_find_supported_video_card();
+LONG drm_aros_pci_count_displays();
 VOID drm_aros_pci_shutdown();
 LONG drm_aros_pci_init();
 

@@ -27,6 +27,11 @@
 #include <subdev/bios.h>
 #include <subdev/bios/image.h>
 
+#if defined(__AROS__)
+#include <proto/dos.h>
+#include <dos/dos.h>
+#endif
+
 struct shadow {
 	u32 skip;
 	const struct nvbios_source *func;
@@ -169,6 +174,110 @@ shadow_fw = {
 	.rw = false,
 };
 
+/* AROS: VBIOS can be loaded from a file, which is needed for laptop discrete
+   GPUs (e.g. Optimus) where the VBIOS is not accessible via the PCI ROM or
+   PRAMIN because the card is not driving a display.
+
+   This source is only consulted after all hardware sources (PRAMIN, PCI ROM,
+   ACPI, ...) have failed to locate a VBIOS, so cards with an on-board VBIOS
+   chip are unaffected. The file is looked up as
+   DEVS:Firmware/NVidia/<chipfamily>/*.rom (e.g. NVidia/gm108/). Some VBIOS
+   dumps (e.g. from TechPowerUp) are delivered in a "cleaned" format that
+   starts with an "NVGI" header instead of a raw PCI option ROM header, so the
+   signature and the PCIR pointer are patched to the form nouveau's image
+   validator expects. */
+static void
+nvbios_arosfile_patch(const struct firmware *fw)
+{
+	u8 *d = (u8 *)fw->data;
+	u32 size = fw->size;
+	u32 pcir = 0, i;
+
+	for (i = 0; i + 0x16 <= size; i++) {
+		if (d[i + 0] == 'P' && d[i + 1] == 'C' && d[i + 2] == 'I' && d[i + 3] == 'R') {
+			if (get_unaligned_le16(&d[i + 4]) == 0x10de) {
+				pcir = i;
+				break;
+			}
+		}
+	}
+	if (!pcir)
+		return;
+
+	if (size >= 0x1a) {
+		d[0x18] = (u8)(pcir & 0xff);
+		d[0x19] = (u8)(pcir >> 8);
+	}
+
+	if (size >= 2) {
+		u16 sig = get_unaligned_le16(&d[0]);
+		if (sig != 0xaa55 && sig != 0xbb77 && sig != 0x4e56) {
+			d[0] = 0x56;
+			d[1] = 0x4e;
+		}
+	}
+}
+
+static void
+nvbios_arosfile_lower(char *dst, const char *src, int len)
+{
+	int i;
+	for (i = 0; i < len - 1 && src[i]; i++) {
+		char c = src[i];
+		if (c >= 'A' && c <= 'Z')
+			c += 'a' - 'A';
+		dst[i] = c;
+	}
+	dst[i] = 0;
+}
+
+static void *
+nvbios_arosfile_init(struct nvkm_bios *bios, const char *name)
+{
+	struct nvkm_device *device = bios->subdev.device;
+	struct device *dev = device->dev;
+	const struct firmware *fw;
+	const char *chip = device->chip ? device->chip->name : NULL;
+	char lower[32], fname[96], dir[64];
+	struct FileInfoBlock fib;
+	BPTR lock;
+
+	if (!chip)
+		return ERR_PTR(-ENOENT);
+
+	nvbios_arosfile_lower(lower, chip, sizeof(lower));
+	sprintf(dir, "DEVS:Firmware/NVidia/%s", lower);
+
+	lock = Lock(dir, SHARED_LOCK);
+	if (lock) {
+		if (Examine(lock, &fib)) {
+			while (ExNext(lock, &fib)) {
+				int l = strlen(fib.fib_FileName);
+				if (l > 4 && !strcmp(&fib.fib_FileName[l - 4], ".rom")) {
+					sprintf(fname, "NVidia/%s/%s", lower, fib.fib_FileName);
+					if (!request_firmware(&fw, fname, dev)) {
+						nvbios_arosfile_patch((struct firmware *)fw);
+						UnLock(lock);
+						return (void *)fw;
+					}
+				}
+			}
+		}
+		UnLock(lock);
+	}
+
+	return ERR_PTR(-ENOENT);
+}
+
+static const struct nvbios_source
+nvbios_arosfile = {
+	.name = "AROS",
+	.init = nvbios_arosfile_init,
+	.fini = shadow_fw_release,
+	.read = shadow_fw_read,
+	.rw = false,
+};
+
 int
 nvbios_shadow(struct nvkm_bios *bios)
 {
@@ -182,6 +291,7 @@ nvbios_shadow(struct nvkm_bios *bios)
 		{ 4, &nvbios_acpi_slow },
 		{ 1, &nvbios_pcirom },
 		{ 1, &nvbios_platform },
+		{ 8, &nvbios_arosfile },
 		{}
 	}, *mthd, *best = NULL;
 	const char *optarg;

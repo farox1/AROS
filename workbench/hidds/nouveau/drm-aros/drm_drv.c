@@ -4,6 +4,8 @@
 
 #include <aros/debug.h>
 
+#include <proto/dos.h>
+
 #include <drm-compat/drm_compat_funcs.h>
 #include <drm-compat/drm_compat_pci.h>
 #include <drm-compat/drm_compat_mem.h>
@@ -90,6 +92,22 @@ int nouveau_drm_probe(struct pci_dev *pdev, const struct pci_device_id *pent, st
 struct drm_device *current_drm_device;
 BOOL workqueue_init();
 
+/* Map a PCI device ID to the chip family used for the VBIOS firmware
+   directory (DEVS:Firmware/NVidia/<family>/). Keep in sync with the
+   nvkm chipset names. */
+static const char *
+nouveau_device_family(UWORD device)
+{
+    switch (device)
+    {
+    case 0x134d: return "gm108"; /* GeForce 940MX (GM108) */
+    case 0x1d10:
+    case 0x1d11:
+    case 0x1d13: return "gp108"; /* MX150 / GT 1030 (GP108) */
+    default:     return NULL;
+    }
+}
+
 /*
  * Bring-up is split in two so that the caller gets a look at the card -
  * and in particular at its BARs - after it has been found but before it
@@ -109,9 +127,43 @@ struct pci_dev *nouveau_init_findcard(void)
 int nouveau_init_probe(struct pci_dev *pdev)
 {
     struct pci_device_id dummy;
+    const char *family;
+    char enable[32];
 
     if (!pdev)
         return -1;
+
+    /* Is the Nvidia card the primary card? If it is the ONLY display
+       controller on the bus, probe it directly. Otherwise it's a
+       secondary card (e.g. an Optimus dGPU) and is opt-in: only probe
+       when NouveauEnable is set, so the primary card always boots. */
+    if (drm_aros_pci_count_displays() <= 1)
+    {
+        bug("[Nouveau] Nvidia card 0x%x/0x%x is the only display card, probing\n",
+            pdev->vendor, pdev->device);
+    }
+    else
+    {
+        if (GetVar("NouveauEnable", enable, sizeof(enable), LV_VAR) <= 0)
+        {
+            family = nouveau_device_family(pdev->device);
+            if (family)
+            {
+                bug("[Nouveau] Found Nvidia card 0x%x/0x%x (%s). disabled as secondary card.\n",
+                    pdev->vendor, pdev->device, family);
+                bug("[Nouveau] To enable it, see readmeNvidiaOptimus.txt\n");
+            }
+            else
+            {
+                bug("[Nouveau] Found Nvidia card 0x%x/0x%x. disabled as secondary card.\n",
+                    pdev->vendor, pdev->device);
+                bug("[Nouveau] To enable it, see readmeNvidiaOptimus.txt\n");
+            }
+            drm_aros_pci_shutdown();
+            return -1;
+        }
+        bug("[Nouveau] NouveauEnable = '%s', probing secondary card\n", enable);
+    }
 
     if (!workqueue_init())
         return -1;

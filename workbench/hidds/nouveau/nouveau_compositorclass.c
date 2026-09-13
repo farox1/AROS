@@ -328,7 +328,8 @@ static VOID HIDDCompositorRedrawVisibleScreen(struct HIDDCompositorData * compda
 {
     struct StackBitMapNode * n = NULL;
     ULONG lastscreenvisibleline = compdata->screenrect.MaxY;
-    
+
+
     /* Calculations are performed regardless if compositedbitmap is beeing show.
        Gfx operations are only performed if compositedbitmap is beeing show */
     
@@ -486,7 +487,11 @@ static VOID HIDDCompositorToggleCompositing(struct HIDDCompositorData * compdata
     /* If the screenbitmap changed, show the new screenbitmap */
     /* (e) */
     if (oldscreenbitmap != compdata->screenbitmap)
+    {
+        bug("[Compositor] Switching to new screenbitmap %p, old was %p\n",
+            compdata->screenbitmap, oldscreenbitmap);
         HIDDNouveauSwitchToVideoMode(compdata->screenbitmap);
+    }
 
     /* (a) - disposing of oldcompositorbitmap needs to happen after mode switch 
        since it could have been the current screenbitmap */
@@ -554,11 +559,16 @@ OOP_Object *METHOD(Compositor, Root, New)
         
         if ((compdata->gfx == NULL) || (compdata->gc == NULL))
         {
+            bug("[Compositor] Root::New FAILED: gfx=%p, gc=%p\n", compdata->gfx, compdata->gc);
             /* Creation failed */
             OOP_MethodID disposemid;
             disposemid = OOP_GetMethodID(IID_Root, moRoot_Dispose);
             OOP_CoerceMethod(cl, o, (OOP_Msg)&disposemid);
             o = NULL;
+        }
+        else
+        {
+            bug("[Compositor] Root::New OK: gfx=%p, gc=%p\n", compdata->gfx, compdata->gc);
         }
     }
 
@@ -571,8 +581,8 @@ VOID METHOD(Compositor, Hidd_Compositor, BitMapStackChanged)
     struct HIDDCompositorData * compdata = OOP_INST_DATA(cl, o);
     struct StackBitMapNode * n = NULL;
 
-    D(bug("[Compositor] BitMapStackChanged, topbitmap: 0x%x\n", 
-        msg->data->Bitmap));
+    bug("[Compositor] BitMapStackChanged, topbitmap: %p\n", 
+        msg->data ? msg->data->Bitmap : NULL);
 
     LOCK_COMPOSITOR_WRITE
         
@@ -643,6 +653,9 @@ VOID METHOD(Compositor, Hidd_Compositor, BitMapRectChanged)
 {
     struct HIDDCompositorData * compdata = OOP_INST_DATA(cl, o);
 
+    bug("[Compositor] BitMapRectChanged bm=%p x=%d y=%d w=%d h=%d\n",
+        msg->bm, msg->x, msg->y, msg->width, msg->height);
+
     LOCK_COMPOSITOR_READ
 
     HIDDCompositorRedrawBitmap(compdata, msg->bm, msg->x, msg->y, msg->width, msg->height);
@@ -653,6 +666,8 @@ VOID METHOD(Compositor, Hidd_Compositor, BitMapRectChanged)
 VOID METHOD(Compositor, Hidd_Compositor, BitMapPositionChanged)
 {
     struct HIDDCompositorData * compdata = OOP_INST_DATA(cl, o);
+
+    bug("[Compositor] BitMapPositionChanged bm=%p\n", msg->bm);
 
     LOCK_COMPOSITOR_WRITE
 

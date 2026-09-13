@@ -45,7 +45,7 @@ void iounmap(void * addr)
     }
 }
 
-void * pci_resource_cpu_addr(resource_size_t busaddr)
+void *pci_resource_cpu_addr(resource_size_t busaddr)
 {
     if (pciDriver)
     {
@@ -214,7 +214,7 @@ int pci_write_config_dword(struct pci_dev * pdev, int where, u32 val)
 {
     struct pHidd_PCIDevice_WriteConfigLong wclmsg =
     {
-        mID: OOP_GetMethodID(IID_Hidd_PCIDevice, moHidd_PCIDevice_ReadConfigLong),
+        mID: OOP_GetMethodID(IID_Hidd_PCIDevice, moHidd_PCIDevice_WriteConfigLong),
         reg: (UBYTE)where,
         val: val,
     }, *msg = &wclmsg;
@@ -281,12 +281,24 @@ int pci_enable_msi(struct pci_dev *pdev)
 
 int pci_enable_rom(struct pci_dev *pdev)
 {
-    NOT_IMPLEMENTED_CONTINUE
+    u32 rom;
+
+    /* Enable the PCI Expansion ROM by setting bit 0 of the expansion ROM
+       base address register (config offset 0x30). Without this the ROM
+       window is not decoded and reads return garbage, which prevents
+       nouveau from locating the VBIOS on cards that carry it in the ROM
+       (this is common on laptop discrete GPUs). */
+    pci_read_config_dword(pdev, 0x30, &rom);
+    pci_write_config_dword(pdev, 0x30, rom | 0x00000001);
     return 0;
 }
+
 void pci_disable_rom(struct pci_dev *pdev)
 {
-    NOT_IMPLEMENTED_CONTINUE
+    u32 rom;
+
+    pci_read_config_dword(pdev, 0x30, &rom);
+    pci_write_config_dword(pdev, 0x30, rom & ~0x00000001);
 }
 
 void *pci_map_rom(struct pci_dev *pdev, size_t *size)

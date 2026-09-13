@@ -760,6 +760,12 @@ nvkm_device_pci_10de_1347[] = {
 };
 
 static const struct nvkm_device_pci_vendor
+nvkm_device_pci_10de_134d[] = {
+	{ 0x1025, 0x119a, "GeForce 940MX" },
+	{}
+};
+
+static const struct nvkm_device_pci_vendor
 nvkm_device_pci_10de_137a[] = {
 	{ 0x17aa, 0x2225, "Quadro K620M" },
 	{}
@@ -1522,6 +1528,7 @@ nvkm_device_pci_10de[] = {
 	{ 0x1344, "GeForce 845M" },
 	{ 0x1346, "GeForce 930M", nvkm_device_pci_10de_1346 },
 	{ 0x1347, "GeForce 940M", nvkm_device_pci_10de_1347 },
+	{ 0x134d, "GeForce 940MX", nvkm_device_pci_10de_134d },
 	{ 0x137a, NULL, nvkm_device_pci_10de_137a },
 	{ 0x137d, NULL, nvkm_device_pci_10de_137d },
 	{ 0x1380, "GeForce GTX 750 Ti" },

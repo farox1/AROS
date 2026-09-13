@@ -42,13 +42,18 @@ AROS_UFH3(void, Enumerator,
         return;
     }
 
-    /* Check interrupt line. If it is not set, just skip the device */
+    /* Check interrupt line. Laptop discrete GPUs often report no legacy INT
+       line (0) because their IRQ is routed via the IOAPIC/MSI path, which
+       pcipc.hidd does not read. Do not skip such devices - accept them and
+       let request_irq() deal with the missing interrupt. */
     OOP_GetAttr(pciDevice, aHidd_PCIDevice_INTLine, &INTLine);
-    if ((INTLine == 0) || (INTLine >= 255))
+    if (INTLine >= 255)
     {
-        bug("INT line is not set. Skipping device.\n");
+        bug("INT line is invalid (%d). Skipping device.\n", INTLine);
         return;
     }
+    if (INTLine == 0)
+        bug("Warning: INT line is not set, running without interrupts.\n");
 
     /* Get the Device's ProductID */
     OOP_GetAttr(pciDevice, aHidd_PCIDevice_ProductID,           &ProductID);
@@ -136,6 +141,54 @@ static struct pci_dev *drm_aros_pci_find_card()
     }
 
     return _return;
+}
+
+static IPTR display_count = 0;
+
+static AROS_UFH3(void, CountEnumerator,
+    AROS_UFHA(struct Hook *, hook, A0),
+    AROS_UFHA(OOP_Object *, pciDevice, A2),
+    AROS_UFHA(APTR, message, A1))
+{
+    AROS_USERFUNC_INIT
+
+    display_count++;
+
+    AROS_USERFUNC_EXIT
+}
+
+/* Count the number of display controllers (PCI class 0x03) on the bus.
+   Used to decide whether an Nvidia card is the primary card (only
+   display controller) or a secondary card (e.g. an Optimus dGPU). */
+LONG drm_aros_pci_count_displays()
+{
+    display_count = 0;
+
+    if (pciBus)
+    {
+        struct Hook CountHook =
+        {
+            h_Entry:    (IPTR (*)())CountEnumerator,
+            h_Data:     NULL,
+        };
+
+        struct TagItem Requirements[] =
+        {
+            { tHidd_PCI_Interface,  0x00 },
+            { tHidd_PCI_Class,      0x03 }, /* Display controller */
+            { TAG_DONE,             0UL }
+        };
+
+        struct pHidd_PCI_EnumDevices enummsg =
+        {
+            mID:        OOP_GetMethodID(IID_Hidd_PCI, moHidd_PCI_EnumDevices),
+            callback:   &CountHook,
+            requirements:   (struct TagItem*)&Requirements,
+        }, *msg = &enummsg;
+        OOP_DoMethod(pciBus, (OOP_Msg)msg);
+    }
+
+    return display_count;
 }
 
 struct pci_dev *drm_aros_pci_find_supported_video_card()

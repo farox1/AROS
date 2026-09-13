@@ -34,6 +34,18 @@ int request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, co
     if (!handler)
         return -EINVAL;
 
+    /* Some cards (e.g. laptop discrete GPUs) report INT line 0 or 255
+       because their IRQ is routed via the IOAPIC/MSI path, which the AROS
+       PCI subsystem does not expose. Registering an interrupt server on
+       INTB_KERNEL + 0 would conflict with the kernel vector, so skip
+       registration but report success to let the driver run without
+       interrupts. */
+    if ((irq == 0) || (irq >= 255))
+    {
+        bug("request_irq: skipping invalid IRQ %u for %s (driver runs WITHOUT interrupts)\n", irq, name);
+        return 0;
+    }
+
     entry.irq       = irq;
     entry.handler   = handler;
     entry.dev_id    = dev;
@@ -44,8 +56,6 @@ int request_irq(unsigned int irq, irq_handler_t handler, unsigned long flags, co
     entry.is.is_Node.ln_Name    = (STRPTR)"Nouveau IRQ handler";
     entry.is.is_Code            = (VOID_FUNC)irq_dispatcher;
     entry.is.is_Data            = (APTR)&entry;
-
-    D(bug("request_irq: registering handler for IRQ %d\n", hname, irq));
 
     /* Register with the interrupt system */
     AddIntServer(INTB_KERNEL + irq, &entry.is);
