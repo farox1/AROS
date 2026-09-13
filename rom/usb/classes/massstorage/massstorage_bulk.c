@@ -631,6 +631,7 @@ LONG nScsiDirectBulk(struct NepClassMS *ncm, struct SCSICmd *scsicmd)
                     if(ioerr == UHIOERR_NAKTIMEOUT)
                     {
                         /* Device may simply be busy and NAKing for too long. Treat as retryable. */
+                        KPrintF("[USBMASS] STATUS NAKTIMEOUT, backing off\n");
                         KPRINTF(10, ("Command status NAK-timeout, assuming device busy; backing off and retrying\n"));
                         psdDelayMS(500);
                         nRelaxNakTimeout(ncm, ncm->ncm_EPInPipe, 120000); /* 120s */
@@ -652,6 +653,7 @@ LONG nScsiDirectBulk(struct NepClassMS *ncm, struct SCSICmd *scsicmd)
                 if(ioerr == UHIOERR_NAKTIMEOUT)
                 {
                     /* Prolonged NAKs are common when flash devices are busy (erase/program). Retry with backoff. */
+                    KPrintF("[USBMASS] DATA NAKTIMEOUT, backing off\n");
                     KPRINTF(10, ("Data phase NAK-timeout, assuming device busy; backing off and retrying\n"));
                     psdDelayMS(500);
                     /* Relax timeout for subsequent attempts to reduce repeated aborts. */

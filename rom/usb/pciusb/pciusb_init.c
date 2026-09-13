@@ -40,6 +40,12 @@ static int getArguments(struct PCIDevice *base)
 
     pciusbDebug("", "bootloader @ 0x%p\n", BootLoaderBase);
 
+#if defined(USB_NOEHCI)
+    /* Compile-time forced EHCI disable (diagnostic builds). */
+    base->hd_Flags |= HDF_NOEHCI;
+    pciusbWarn("", "USB_NOEHCI compile-time flag: EHCI disabled\n");
+#endif
+
     if (BootLoaderBase) {
         struct List *args = GetBootInfo(BL_Args);
 
@@ -52,6 +58,11 @@ static int getArguments(struct PCIDevice *base)
 
                     if (strstr(CmdLine, "forcepower")) {
                         base->hd_Flags |= HDF_FORCEPOWER;
+                        continue;
+                    }
+
+                    if (strstr(CmdLine, "noehci")) {
+                        base->hd_Flags |= HDF_NOEHCI;
                         continue;
                     }
                 }

@@ -292,6 +292,8 @@ struct PCIDevice
 /* hd_Flags */
 #define HDB_FORCEPOWER	                0
 #define HDF_FORCEPOWER	                (1 << HDB_FORCEPOWER)
+#define HDB_NOEHCI	                    1
+#define HDF_NOEHCI	                    (1 << HDB_NOEHCI)
 
 /** OOP Related **/
 

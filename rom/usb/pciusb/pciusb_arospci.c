@@ -80,6 +80,17 @@ static void handleQuirks(struct PCIController *hc)
             }
             break;
         }
+    } else if (vendorid == 0x1002 && (productid == 0x4386 || productid == 0x4396)) {
+        /* AMD SB600/SB700: the EHCI controller can lose response on its
+           devices ("USB freeze"). The documented workaround is to set bit 3
+           of PCI config byte 0x53. This is what the Linux kernel applies
+           (see drivers/usb/host/ehci-pci.c, quirk for AMD hang symptom). */
+        UBYTE tmp = READCONFIGBYTE(hc, hc->hc_PCIDeviceObject, 0x53);
+        if(!(tmp & (1 << 3))) {
+            WRITECONFIGBYTE(hc, hc->hc_PCIDeviceObject, 0x53, tmp | (1 << 3));
+        }
+        pciusbWarn("PCI", "AMD SB600/SB700 EHCI freeze workaround applied (cfg 0x53|0x08)\n");
+        hc->hc_Quirks |= HCQ_EHCI_AMD_FREEZE;
     }
 }
 
@@ -118,6 +129,12 @@ AROS_UFH3(void, pciEnumerator,
         case HCITYPE_OHCI:
         case HCITYPE_EHCI:
         case HCITYPE_UHCI:
+            if (hcitype == HCITYPE_EHCI && (hd->hd_Flags & HDF_NOEHCI)) {
+                /* USB=noehci boot arg: run pendrives on OHCI/USB1.1 only.
+                   Workaround for problematic AMD SB700/SB8xx EHCI. */
+                pciusbWarn("PCI", "Skipping EHCI controller (USB=noehci)\n");
+                break;
+            }
             pciusbDebug("PCI", "Setting up device...\n");
 
             hc = AllocPooled(hd->hd_MemPool, sizeof(struct PCIController));

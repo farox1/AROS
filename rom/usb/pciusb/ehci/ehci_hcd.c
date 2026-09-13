@@ -411,8 +411,13 @@ void ehciHandleFinishedTDs(struct PCIController *hc)
                     WRITEMEM32_LE(&eqh->eqh_NextTD, etd->etd_Self);
                     CacheClearE(&eqh->eqh_NextTD, 16, CACRF_ClearD);
                     SYNC;
-                    unit->hu_NakTimeoutFrame[devadrep] =
-                        (ioreq->iouh_Flags & UHFF_NAKTIMEOUT) ? hc->hc_FrameCounter + (ioreq->iouh_NakTimeout<<ehcihcp->ehc_EhciTimeoutShift) : 0;
+                    /* Preserve the NAK timeout deadline from the initial schedule
+                     * (don't push it forward on every reload), otherwise a transfer
+                     * that keeps being reloaded/NAKing never times out and hangs. */
+                    if(!unit->hu_NakTimeoutFrame[devadrep]) {
+                        unit->hu_NakTimeoutFrame[devadrep] =
+                            (ioreq->iouh_Flags & UHFF_NAKTIMEOUT) ? hc->hc_FrameCounter + (ioreq->iouh_NakTimeout<<ehcihcp->ehc_EhciTimeoutShift) : 0;
+                    }
                 } else {
                     ehciFreeAsyncContext(hc, ioreq);
                     // use next data toggle bit based on last successful transaction

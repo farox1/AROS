@@ -3188,9 +3188,24 @@ static AROS_INTH1(xhciIntCode, struct PCIController *, hc)
     AROS_INTFUNC_INIT
 
     struct XhciHCPrivate *xhcic = xhciGetHCPrivate(hc);
-    volatile struct xhci_hcopr *hcopr =
-        (volatile struct xhci_hcopr *)((IPTR)xhcic->xhc_XHCIOpR);
+    volatile struct xhci_hcopr *hcopr;
     BOOL doCompletion = FALSE, checkRHchanges = FALSE;
+
+    /*
+     * A legacy line interrupt can arrive right after AddIntServer() /
+     * PCIXAddInterrupt() but before the controller is running and all
+     * register mappings are live. On some chipsets (Skylake xHCI shared
+     * INT) that raises an exception inside this handler. Guard every
+     * MMIO access with the same validity check used at init.
+     */
+    if(!hc || !xhcic || !xhcic->xhc_XHCIOpR || !xhcic->xhc_XHCIIntR ||
+       !hc->hc_RegBase) {
+        bug("[xHCI] %s: IRQ before controller ready (hc=%p xhcic=%p) - ignored\n",
+            __func__, hc, xhcic);
+        return FALSE;
+    }
+
+    hcopr = (volatile struct xhci_hcopr *)((IPTR)xhcic->xhc_XHCIOpR);
 
     pciusbXHCIDebug("xHCI", DEBUGFUNCCOLOR_SET "%s()" DEBUGCOLOR_RESET" \n", __func__);
 

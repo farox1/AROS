@@ -461,7 +461,10 @@ AROS_LH2(IPTR, usbDoMethodA,
 
     struct NepClassEth *ncp;
 
-    KPRINTF(10, ("Do Method %ld\n", methodid));
+    /* NOTE: no per-call trace here. cdceth is shipped with DEBUG=1 and this
+     * method runs in a tight loop when a USB-Ethernet adapter is present; a
+     * KPRINTF here flooded the log and wedged the boot (same lesson as the
+     * EHCI nakscan spam). */
     switch(methodid)
     {
         case UCM_AttemptDeviceBinding:

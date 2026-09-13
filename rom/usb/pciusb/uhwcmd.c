@@ -2037,6 +2037,7 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
     UWORD cnt;
     ULONG linkelem;
     ULONG ctrlstatus;
+    ULONG scanlimit;
     BOOL causeint;
 
     pciusbDebug("UHW", DEBUGCOLOR_SET "%s(0x%p)" DEBUGCOLOR_RESET "\n", __func__, unit);
@@ -2050,6 +2051,12 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
         }
         ULONG framecnt;
         causeint = FALSE;
+        /* Protect the hc_TDQueue walk against the EHCI/UHCI/OHCI
+           completion softinterrupt, which nests on the same CPU and can
+           Remove()/free the node we are standing on (list walk then reads
+           a recycled ln_Succ -> endless loop inside this softint -> the
+           whole system freezes with interrupts dead). */
+        Disable();
         switch(hc->hc_HCIType) {
         case HCITYPE_UHCI: {
             uhciUpdateFrameCounter(hc);
@@ -2057,7 +2064,13 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
 
             // NakTimeout
             ioreq = (struct IOUsbHWReq *) hc->hc_TDQueue.lh_Head;
+            scanlimit = 0;
             while(((struct Node *) ioreq)->ln_Succ) {
+                if(scanlimit++ > 4096) {
+                    KPRINTF(20, "UHCI: nakscan GUARD: cyclic/oversized queue!\n");
+                    ioreq = (struct IOUsbHWReq *) hc->hc_TDQueue.lh_Head;
+                    break;
+                }
                 if(ioreq->iouh_Flags & UHFF_NAKTIMEOUT) {
                     uqh = (struct UhciQH *) ioreq->iouh_DriverPrivate1;
                     if(uqh) {
@@ -2105,10 +2118,15 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
             framecnt = hc->hc_FrameCounter;
             // NakTimeout
             ioreq = (struct IOUsbHWReq *) hc->hc_TDQueue.lh_Head;
+            scanlimit = 0;
             while(((struct Node *) ioreq)->ln_Succ) {
                 // Remember the successor because ohciAbortRequest() will move the request to another list
                 struct IOUsbHWReq *succ = (struct IOUsbHWReq *)ioreq->iouh_Req.io_Message.mn_Node.ln_Succ;
 
+                if(scanlimit++ > 4096) {
+                    KPRINTF(20, "OHCI: nakscan GUARD: cyclic/oversized queue!\n");
+                    break;
+                }
                 if(ioreq->iouh_Flags & UHFF_NAKTIMEOUT) {
                     KPRINTF(1, "OHCI: Examining IOReq=%p with OED=%p\n", ioreq, ioreq->iouh_DriverPrivate1);
                     if (ioreq->iouh_DriverPrivate1) {
@@ -2142,7 +2160,13 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
             // NakTimeout
             for(cnt = 0; cnt < 2; cnt++) {
                 ioreq = (struct IOUsbHWReq *) (cnt ? hc->hc_PeriodicTDQueue.lh_Head : hc->hc_TDQueue.lh_Head);
+                scanlimit = 0;
                 while(((struct Node *) ioreq)->ln_Succ) {
+                    if(scanlimit++ > 4096) {
+                        KPRINTF(20, "EHCI: nakscan GUARD: cyclic/oversized queue (cnt=%ld)!\n", cnt);
+                        ioreq = (struct IOUsbHWReq *) ((struct Node *) ioreq)->ln_Succ;
+                        break;
+                    }
                     if(ioreq->iouh_Flags & UHFF_NAKTIMEOUT) {
                         eqh = (struct EhciQH *) ioreq->iouh_DriverPrivate1;
                         if(eqh) {
@@ -2151,8 +2175,13 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
                             ctrlstatus = READMEM32_LE(&eqh->eqh_CtrlStatus);
                             if(ctrlstatus & ETCF_ACTIVE) {
                                 if(framecnt > unit->hu_NakTimeoutFrame[devadrep]) {
-                                    // give the thing the chance to exit gracefully
-                                    KPRINTF(20, "EHCI: NAK timeout %ld > %ld, IOReq=%p\n", framecnt, unit->hu_NakTimeoutFrame[devadrep], ioreq);
+                                    /* Give the thing the chance to exit gracefully.
+                                       NOTE: this runs in interrupt (softint) context,
+                                       so ONLY use KPRINTF (compiled out unless DEBUG
+                                       is on). A raw KPrintF here is not reentrant and
+                                       corrupts the debug log with raw data. */
+                                    KPRINTF(20, "EHCI: NAK timeout %ld > %ld, IOReq=%p ep=%lx\n",
+                                            framecnt, unit->hu_NakTimeoutFrame[devadrep], ioreq, devadrep);
                                     ctrlstatus &= ~ETCF_ACTIVE;
                                     ctrlstatus |= ETSF_HALTED;
                                     WRITEMEM32_LE(&eqh->eqh_CtrlStatus, ctrlstatus);
@@ -2174,6 +2203,7 @@ AROS_INTH1(uhwNakTimeoutInt, struct PCIUnit *,  unit)
         }
 
         }
+        Enable();
         if(causeint) {
             SureCause(base, &hc->hc_CompleteInt);
         }

@@ -4814,10 +4814,44 @@ AROS_LH1(LONG, psdWaitPipe,
     struct PsdDevice *pd = pp->pp_Device;
     LONG ioerr;
     KPRINTF(5, ("psdWaitPipe(%p)\n", pp));
-    while(pp->pp_Msg.mn_Node.ln_Type == NT_MESSAGE) {
-        KPRINTF(5, ("ln_Type = %02lx\n", pp->pp_Msg.mn_Node.ln_Type));
-        sigs |= Wait(1L<<pp->pp_MsgPort->mp_SigBit);
-        KPRINTF(5, ("sigs = %p\n", sigs));
+    {
+        /* Timeout protection: if the HW driver never replies (stalled
+           endpoint / wedged transfer), send an abort request once and keep
+           waiting for the reply. This converts an infinite hang into a
+           recoverable error path. Skip the self-abort for abort requests. */
+        struct timeval tvStart;
+        BOOL    aborted = FALSE;
+        struct  PsdPipe *npp = NULL;
+        GetSysTime((APTR) &tvStart);
+        while(pp->pp_Msg.mn_Node.ln_Type == NT_MESSAGE) {
+            KPRINTF(5, ("ln_Type = %02lx\n", pp->pp_Msg.mn_Node.ln_Type));
+            if(!pp->pp_AbortPipe && !aborted) {
+                struct timeval tvNow;
+                GetSysTime((APTR) &tvNow);
+                if (tvNow.tv_secs - tvStart.tv_secs >= 5) {
+                    aborted = TRUE;
+                    if((npp = psdAllocVec(sizeof(struct PsdPipe)))) {
+                        npp->pp_Device = pp->pp_Device;
+                        npp->pp_MsgPort = npp->pp_Msg.mn_ReplyPort = pp->pp_MsgPort;
+                        npp->pp_Msg.mn_Length = sizeof(struct PsdPipe);
+                        npp->pp_AbortPipe = pp;
+                        PutMsg(&pp->pp_Device->pd_Hardware->phw_TaskMsgPort, &npp->pp_Msg);
+                    }
+                }
+            }
+            sigs |= Wait(1L<<pp->pp_MsgPort->mp_SigBit);
+            KPRINTF(5, ("sigs = %p\n", sigs));
+        }
+        if(npp) {
+            /* Drain a potential stray abort reply */
+            Forbid();
+            if(npp->pp_Msg.mn_Node.ln_Type == NT_REPLYMSG) {
+                npp->pp_Msg.mn_Node.ln_Type = NT_FREEMSG;
+                Remove(&npp->pp_Msg.mn_Node);
+            }
+            Permit();
+            psdFreeVec(npp);
+        }
     }
 #if 1 // broken?
     Forbid();

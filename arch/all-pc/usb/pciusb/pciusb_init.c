@@ -62,6 +62,11 @@ static int getArguments(struct PCIDevice *base)
     }
 
     BootLoaderBase = OpenResource("bootloader.resource");
+#if defined(USB_NOEHCI)
+    /* TEST BUILD: force-disable EHCI (USB1.1/OHCI only). */
+    base->hd_Flags |= HDF_NOEHCI;
+    pciusbInfo("", "USB_NOEHCI compile-time: EHCI disabled\n");
+#endif
     if (BootLoaderBase)
     {
         struct List *args = GetBootInfo(BL_Args);
@@ -81,6 +86,12 @@ static int getArguments(struct PCIDevice *base)
                         base->hd_Flags |= HDF_FORCEPOWER;
                         continue;
                     }
+
+                    if (strstr(CmdLine, "noehci"))
+                    {
+                        base->hd_Flags |= HDF_NOEHCI;
+                        continue;
+                    }
                 }
             }
         }
@@ -88,6 +99,10 @@ static int getArguments(struct PCIDevice *base)
     if (base->hd_Flags & HDF_FORCEPOWER)
     {
         pciusbInfo("", "Forcing USB Power\n");
+    }
+    if (base->hd_Flags & HDF_NOEHCI)
+    {
+        pciusbInfo("", "EHCI delegation disabled (USB1.1 only)\n");
     }
     return TRUE;
 }
